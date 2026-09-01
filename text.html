@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogiTrack Live</title>
+    <link rel="stylesheet" href="https://jsdelivr.net">
+    <script src="https://unpkg.com"></script>
+    <style>
+        .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow, .leaflet-tile-container, .leaflet-pane > svg, .leaflet-pane > canvas, .leaflet-zoom-box, .leaflet-image-layer, .leaflet-layer { position: absolute; left: 0; top: 0; }
+        .leaflet-container { overflow: hidden; -ms-touch-action: none; touch-action: none; font-family: sans-serif; background: #eee; }
+        .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow { -webkit-user-select: none; -moz-user-select: none; user-select: none; -webkit-user-drag: none; }
+        .leaflet-tile { filter: inherit; visibility: hidden; }
+        .leaflet-tile-loaded { visibility: inherit; }
+        .leaflet-zoom-animated { -webkit-transform-origin: 0 0; -ms-transform-origin: 0 0; transform-origin: 0 0; }
+        .leaflet-pane { z-index: 400; }
+        .leaflet-tile-pane { z-index: 200; }
+        .leaflet-overlay-pane { z-index: 400; }
+        .leaflet-shadow-pane { z-index: 500; }
+        .leaflet-marker-pane { z-index: 600; }
+        .leaflet-tooltip-pane { z-index: 650; }
+        .leaflet-popup-pane { z-index: 700; }
+        .leaflet-map-pane canvas { z-index: 100; }
+        .leaflet-map-pane svg { z-index: 200; }
+        body { background-color: #f8f9fa; padding-top: 2rem; padding-bottom: 2rem; }
+        .card-custom { border-radius: 12px; border: 1px solid #e3e6f0; background: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,.02); padding: 1.5rem; margin-bottom: 1.5rem; }
+        #map { height: 380px; width: 100%; display: block; position: relative; border-radius: 8px; border: 1px solid #dee2e6; }
+        .timeline-container { position: relative; border-left: 2px solid #e9ecef; margin-left: 10px; padding-left: 20px; }
+        .timeline-item { position: relative; margin-bottom: 1.5rem; }
+        .timeline-badge { position: absolute; left: -26px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background-color: #ced4da; }
+        .timeline-item.active .timeline-badge { background-color: #0d6efd; box-shadow: 0 0 0 4px #cff4fc; }
+    </style>
+</head>
+<body>
+
+    <div class="container-xl" style="max-width: 1140px;">
+        <div class="text-center mb-4">
+            <h1 class="fw-bold text-primary">📦 LogiTrack Live</h1>
+            <p class="text-muted">Pelacakan posisi produk dan riwayat paket dalam satu halaman khusus</p>
+        </div>
+
+        <div class="card-custom">
+            <form id="trackingForm" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label small text-uppercase fw-bold text-muted">Nomor Resi / AWB</label>
+                    <input type="text" id="resiInput" class="form-control form-control-lg" placeholder="Contoh: REG-12345678" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-uppercase fw-bold text-muted">Ekspedisi</label>
+                    <select id="kurirSelect" class="form-select form-select-lg">
+                        <option value="jne">JNE Express</option>
+                        <option value="jnt">J&T Express</option>
+                        <option value="sicepat">SiCepat</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold">Lacak Paket</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="trackingResult" style="display: none;">
+            <div class="alert alert-info rounded-3 p-4 mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div>
+                    <span class="text-uppercase small fw-bold">Status Terbaru:</span>
+                    <h4 id="currentStatus" class="alert-heading fw-bold my-1">-</h4>
+                    <small id="lastUpdate" class="text-muted">-</small>
+                </div>
+                <div class="bg-white p-3 rounded border text-dark border-info-subtle small min-w-[220px]">
+                    <div>Penerima: <strong>Budi Santoso</strong></div>
+                    <div>Tujuan: <strong>Kuningan, Jakarta</strong></div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="bg-white rounded-3 border p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold m-0">Posisi Kurir Saat Ini</h5>
+                            <span class="badge bg-success px-2.5 py-1.5">Live</span>
+                        </div>
+                        <div id="map"></div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card-custom mb-4">
+                        <div class="mb-3">
+                            <span class="text-muted small text-uppercase">Nomor Resi</span>
+                            <div id="outputResi" class="fw-bold font-monospace text-dark">-</div>
+                        </div>
+                        <div>
+                            <span class="text-muted small text-uppercase">Layanan Ekspedisi</span>
+                            <div id="outputKurir" class="fw-bold text-dark">-</div>
+                        </div>
+                    </div>
+
+                    <div class="card-custom">
+                        <h5 class="fw-bold mb-4">Riwayat Perjalanan</h5>
+                        <div id="timelineContainer" class="timeline-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let map; 
+        let marker; 
+
+        document.getElementById('trackingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const resi = document.getElementById('resiInput').value;
+            const kurir = document.getElementById('kurirSelect').options[document.getElementById('kurirSelect').selectedIndex].text;
+
+            const dataSimulasi = {
+                statusTerbaru: "Kurir sedang membawa paket menuju alamat penerima",
+                waktuTerbaru: "31 Agu 2026 - 14:20",
+                koordinatKurir: [-6.2241, 106.8316], 
+                riwayat: [
+                    { status: "Kurir sedang membawa paket menuju alamat penerima", waktu: "31 Agu 2026 - 14:20" },
+                    { status: "Paket telah tiba di Hub Jakarta Selatan", waktu: "31 Agu 2026 - 09:15" },
+                    { status: "Paket dalam perjalanan ke Jakarta (Manifested)", waktu: "30 Agu 2026 - 18:00" },
+                    { status: "Paket berhasil diserahkan ke kurir oleh toko", waktu: "30 Agu 2026 - 13:45" }
+                ]
+            };
+
+            document.getElementById('outputResi').innerText = resi;
+            document.getElementById('outputKurir').innerText = kurir;
+            document.getElementById('currentStatus').innerText = dataSimulasi.statusTerbaru;
+            document.getElementById('lastUpdate').innerText = "Pembaruan terakhir: " + dataSimulasi.waktuTerbaru;
+
+            const timelineContainer = document.getElementById('timelineContainer');
+            timelineContainer.innerHTML = ''; 
+
+            dataSimulasi.riwayat.forEach((item, index) => {
+                const isTerbaru = index === 0;
+                const itemHTML = `
+                    <div class="timeline-item ${isTerbaru ? 'active' : ''}">
+                        <div class="timeline-badge"></div>
+                        <div>
+                            <div class="small ${isTerbaru ? 'fw-bold text-primary' : 'text-dark'}">${item.status}</div>
+                            <span class="text-muted" style="font-size: 0.75rem;">${item.waktu}</span>
+                        </div>
+                    </div>
+                `;
+                timelineContainer.innerHTML += itemHTML;
+            });
+
+            document.getElementById('trackingResult').style.display = 'block';
+
+            const pos = dataSimulasi.koordinatKurir;
+
+            if (!map) {
+                map = L.map('map').setView(pos, 15);
+
+                // MENGGUNAKAN CDN ESRI SECARA AMAN (Lolos dari pemblokiran browser HP lokal)
+                L.tileLayer('https://arcgisonline.com{z}/{y}/{x}', {
+                    maxZoom: 19,
+                    attribution: 'Tiles &copy; Esri'
+                }).addTo(map);
+
+                marker = L.marker(pos).addTo(map);
+            } else {
+                map.setView(pos, 15);
+                marker.setLatLng(pos);
+            }
+
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 200);
+        });
+    </script>
+</body>
+</html>
